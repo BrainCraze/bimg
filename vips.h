@@ -3,7 +3,6 @@
 #include <vips/vips.h>
 #include <vips/foreign.h>
 #include <vips/vips7compat.h>
-#include <vips/vector.h>
 
 /**
  * Starting libvips 7.41, VIPS_ANGLE_x has been renamed to VIPS_ANGLE_Dx
@@ -35,7 +34,6 @@ enum types {
 	SVG,
 	MAGICK,
 	HEIF,
-	AVIF
 };
 
 typedef struct {
@@ -44,6 +42,8 @@ typedef struct {
 } WatermarkTextOptions;
 
 typedef struct {
+	int    Left;
+	int    Top;
 	int    Width;
 	int    DPI;
 	int    Margin;
@@ -337,7 +337,7 @@ vips_pngsave_bridge(VipsImage *in, void **buf, size_t *len, int strip, int compr
 		"compression", compression,
 		"interlace", INT_TO_GBOOLEAN(interlace),
 		"filter", VIPS_FOREIGN_PNG_FILTER_ALL,
-		"palette", INT_TO_GBOOLEAN(palette),
+	        "palette", INT_TO_GBOOLEAN(palette),
 		NULL
 	);
 #else
@@ -366,30 +366,6 @@ vips_tiffsave_bridge(VipsImage *in, void **buf, size_t *len) {
 	return vips_tiffsave_buffer(in, buf, len, NULL);
 #else
 	return 0;
-#endif
-}
-
-int
-vips_avifsave_bridge(VipsImage *in, void **buf, size_t *len, int strip, int quality, int lossless, int speed) {
-#if (VIPS_MAJOR_VERSION > 8 || (VIPS_MAJOR_VERSION >= 8 && VIPS_MINOR_VERSION > 10) || (VIPS_MAJOR_VERSION >= 8 && VIPS_MINOR_VERSION >= 10 && VIPS_MICRO_VERSION >= 2))
-    return vips_heifsave_buffer(in, buf, len,
-    "strip", INT_TO_GBOOLEAN(strip),
-    "Q", quality,
-    "lossless", INT_TO_GBOOLEAN(lossless),
-    "compression", VIPS_FOREIGN_HEIF_COMPRESSION_AV1,
-    "speed", speed,
-    NULL
-    );
-#elif (VIPS_MAJOR_VERSION > 8 || (VIPS_MAJOR_VERSION == 8 && VIPS_MINOR_VERSION >= 9))
-    return vips_heifsave_buffer(in, buf, len,
-    "strip", INT_TO_GBOOLEAN(strip),
-    "Q", quality,
-    "lossless", INT_TO_GBOOLEAN(lossless),
-    "compression", VIPS_FOREIGN_HEIF_COMPRESSION_AV1,
-    NULL
-    );
-#else
-    return 0;
 #endif
 }
 
@@ -458,10 +434,6 @@ vips_init_image (void *buf, size_t len, int imageType, VipsImage **out) {
 	} else if (imageType == HEIF) {
 		code = vips_heifload_buffer(buf, len, out, "access", VIPS_ACCESS_RANDOM, NULL);
 #endif
-#if (VIPS_MAJOR_VERSION == 8 && VIPS_MINOR_VERSION >= 9)
-	} else if (imageType == AVIF) {
-		code = vips_heifload_buffer(buf, len, out, "access", VIPS_ACCESS_RANDOM, NULL);
-#endif
 	}
 
 	return code;
@@ -502,7 +474,7 @@ vips_watermark(VipsImage *in, VipsImage **out, WatermarkTextOptions *to, Waterma
 			NULL) ||
 		vips_linear1(t[1], &t[2], o->Opacity, 0.0, NULL) ||
 		vips_cast(t[2], &t[3], VIPS_FORMAT_UCHAR, NULL) ||
-		vips_embed(t[3], &t[4], 100, 100, t[3]->Xsize + o->Margin, t[3]->Ysize + o->Margin, NULL)
+		vips_embed(t[3], &t[4], o->Left, o->Top, t[3]->Xsize + o->Margin + o->Left, t[3]->Ysize + o->Margin + o->Top, NULL)
 		) {
 		g_object_unref(base);
 		return 1;
